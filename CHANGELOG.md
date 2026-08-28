@@ -11,6 +11,10 @@
   field's current value, so a `copyWith` body needs no switch. It is an
   extension rather than a method so that clearing a populated field does not
   trip Dart's covariance check on `Clear`'s `Null` type argument.
-- Added `==` and `hashCode` to the variants. Equality is by wrapped value and
-  ignores type arguments, so `Value('a') == Value('a')`, all `Unchanged`s are
-  equal, and `Clear() == Value(null)`.
+- Added `==`, `hashCode`, and `toString` to the variants. Equality is by wrapped
+  value and ignores type arguments, so `Value('a') == Value('a')`, all
+  `Unchanged`s are equal, and `Clear() == Value(null)`.
+- `Value` is `final`, so it cannot be subclassed outside this library. An
+  external subclass would compare equal to a plain `Value` in one direction only,
+  breaking the symmetry that map and set membership rely on.
+- Requires Dart 3.7 or later.

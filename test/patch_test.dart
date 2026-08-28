@@ -1,7 +1,20 @@
+// The equality tests assert that *separately constructed* patches compare
+// equal, so const-canonicalizing them would collapse both operands to one
+// instance and make the assertions tautological.
+// The explicit `Unchanged()` argument and the widened local types below are
+// likewise the subject of their tests, not redundancy.
+// ignore_for_file: prefer_const_constructors
+// ignore_for_file: avoid_redundant_argument_values, omit_local_variable_types
+
 import 'package:patch/patch.dart';
 import 'package:test/test.dart';
 
-class _Person(final String name, final String? nickname);
+class _Person {
+  _Person(this.name, this.nickname);
+
+  final String name;
+  final String? nickname;
+}
 
 extension on _Person {
   _Person copyWith({
@@ -107,22 +120,24 @@ void main() {
 
       // `Clear` is a `Value<Null>`. An inherited method would take `current` as
       // `Null` and fail Dart's covariance check on a non-null current value, so
-      // this is the case that pins `resolve` to being an extension.
+      // this is the case that pins `resolve` to being an extension. The upcast
+      // is load-bearing, not incidental: static dispatch infers `T` from the
+      // receiver, so `const Clear().resolve('Ada')` does not compile.
       test('supplies null for a $Clear over a non-null current value', () {
-        final Patch<String?> patch = const Clear();
+        const Patch<String?> patch = Clear();
 
         expect(patch.resolve('Ada'), isNull);
       });
 
       test('supplies null for a $Clear over a null current value', () {
-        final Patch<String?> patch = const Clear();
+        const Patch<String?> patch = Clear();
 
         expect(patch.resolve(null), isNull);
       });
 
       test('resolves a non-nullable patch', () {
         final Patch<int> supplied = Value(2);
-        final Patch<int> omitted = const Unchanged();
+        const Patch<int> omitted = Unchanged();
 
         expect(supplied.resolve(1), equals(2));
         expect(omitted.resolve(1), equals(1));
@@ -173,18 +188,15 @@ void main() {
         expect(describeClear(Value(null)), equals('value:null'));
       });
 
+      test('satisfies a nullable $Patch but never a non-nullable one', () {
+        expect(const Clear(), isA<Patch<String?>>());
+        expect(const Clear(), isNot(isA<Patch<String>>()));
+      });
+
       test('exposes the wrapped value through $Value', () {
         expect(Value('a').value, equals('a'));
         expect(const Value<String?>(null).value, isNull);
         expect(const Clear().value, isNull);
-      });
-
-      test('canonicalizes identical const instances', () {
-        expect(
-          identical(const Unchanged<String>(), const Unchanged<String>()),
-          isTrue,
-        );
-        expect(identical(const Clear(), const Clear()), isTrue);
       });
     });
 
@@ -227,6 +239,10 @@ void main() {
           const Clear().hashCode,
           equals(Value<String?>(null).hashCode),
         );
+      });
+
+      test('separates a $Value from a non-patch operand', () {
+        expect(Value('a'), isNot(equals('a')));
       });
 
       test('separates $Clear from $Unchanged', () {

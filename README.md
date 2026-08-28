@@ -10,23 +10,15 @@ to `null`. `Patch<T>` separates those cases.
 
 ## Getting started
 
-This package is not published on pub.dev. Depend on it from git:
-
-```yaml
-dependencies:
-  patch:
-    git:
-      url: https://github.com/andyhorn/patch.git
+```sh
+dart pub add patch
 ```
 
-Pin a release by adding a `ref`:
+Or add it to your `pubspec.yaml` directly:
 
 ```yaml
 dependencies:
-  patch:
-    git:
-      url: https://github.com/andyhorn/patch.git
-      ref: v1.0.0
+  patch: ^1.0.0
 ```
 
 To work on the package alongside a consumer, depend on a local checkout
@@ -38,7 +30,7 @@ dependencies:
     path: ../patch
 ```
 
-It requires Dart 3.13 or later.
+It requires Dart 3.7 or later.
 
 ## Usage
 
@@ -48,7 +40,12 @@ Declare each `copyWith` parameter as a `Patch` that defaults to `Unchanged`, and
 ```dart
 import 'package:patch/patch.dart';
 
-class UserProfile(final String name, final String? nickname);
+class UserProfile {
+  UserProfile(this.name, this.nickname);
+
+  final String name;
+  final String? nickname;
+}
 
 extension on UserProfile {
   UserProfile copyWith({
@@ -114,6 +111,18 @@ profile.copyWith(name: const Clear());
 The same applies to spelling it out as `Value(null)`. Nothing has to be folded
 into `Unchanged`, and there is no unreachable branch to write.
 
+The type argument is load-bearing. A parameter annotated as a bare `Patch` is a
+`Patch<dynamic>`, which accepts `Clear` no matter what the field's type is; the
+mismatch then surfaces as a runtime `type 'Null' is not a subtype of type
+'String'` rather than as the compile error above. Enable `strict-raw-types` in
+your `analysis_options.yaml` so a raw `Patch` is reported:
+
+```yaml
+analyzer:
+  language:
+    strict-raw-types: true
+```
+
 ## Why `resolve` is an extension
 
 `Clear` is a `Value<Null>`, so a `resolve` inherited from `Patch<T>` would take
@@ -121,9 +130,21 @@ into `Unchanged`, and there is no unreachable branch to write.
 populated field was cleared — the package's whole reason for existing. Extension
 methods are dispatched statically, so `current` is typed by the call site.
 
-Two consequences: `resolve` is invisible through a `dynamic` receiver, and an
-importing library that declares its own `resolve` on `Patch` shadows this one.
-Both are cheap next to a runtime failure the analyzer cannot see.
+Three consequences. `resolve` is invisible through a `dynamic` receiver; an
+importing library that declares its own `resolve` on `Patch` shadows this one;
+and the receiver has to be typed `Patch<T?>` rather than `Clear`, because static
+dispatch infers `T` from the receiver's static type:
+
+```dart
+const Clear().resolve('Ada');            // does not compile — T infers as Null
+
+final Patch<String?> patch = const Clear();
+patch.resolve('Ada');                    // null
+```
+
+In practice a `copyWith` parameter is already declared `Patch<T?>`, so the
+widening happens at the call site for free. All three are cheap next to a
+runtime failure the analyzer cannot see.
 
 ## Two things to know
 
