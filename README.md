@@ -1,12 +1,8 @@
 # patch
 
-A wrapper for `copyWith` arguments, so that a nullable field can be cleared as
-well as replaced.
+A wrapper for `copyWith` arguments, so that a nullable field can be set to `null` or left unchanged.
 
-Dart's optional parameters cannot tell `copyWith()` apart from
-`copyWith(nickname: null)`. Both arrive as `null`, so the usual `copyWith`
-idiom can replace a field or leave it alone, but it can never set the field back
-to `null`. `Patch<T>` separates those cases.
+In a typical `copyWith`, a nullable field cannot be assigned to `null` - it would read the same as "unchanged."
 
 ## Getting started
 
@@ -21,21 +17,11 @@ dependencies:
   patch: ^1.0.0
 ```
 
-To work on the package alongside a consumer, depend on a local checkout
-instead:
-
-```yaml
-dependencies:
-  patch:
-    path: ../patch
-```
-
-It requires Dart 3.7 or later.
+Requires Dart 3.7 or later.
 
 ## Usage
 
-Declare each `copyWith` parameter as a `Patch` that defaults to `Unchanged`, and
-`resolve` it against the field's current value:
+Declare each `copyWith` parameter as a `Patch` that defaults to `Unchanged`, and `resolve` it against the field's **current** value:
 
 ```dart
 import 'package:patch/patch.dart';
@@ -50,7 +36,12 @@ class UserProfile {
 extension on UserProfile {
   UserProfile copyWith({
     Patch<String?> nickname = const Unchanged(),
-  }) => UserProfile(name, nickname.resolve(this.nickname));
+  }) {
+    return UserProfile(
+      name,
+      nickname.resolve(this.nickname),
+    );
+  }
 }
 ```
 
@@ -59,21 +50,23 @@ All three outcomes are reachable:
 ```dart
 final profile = UserProfile('Ada Lovelace', 'Ada');
 
-profile.copyWith().nickname;                                // 'Ada'
-profile.copyWith(nickname: Value('The Countess')).nickname; // 'The Countess'
-profile.copyWith(nickname: const Clear()).nickname;         // null
+profile.copyWith().nickname;                                   // 'Ada'
+profile.copyWith(nickname: const Value('Countess')).nickname;  // 'Countess'
+// Because nickname is nullable, we can also "Clear" it
+profile.copyWith(nickname: const Clear()).nickname;            // null
 ```
 
 For a runnable version, see `example/patch_example.dart`.
 
-`resolve` is the whole of the common case, but nothing is hidden behind it —
-switch over the patch directly when a branch needs to do more than pick a value:
+### `.resolve`
+
+`resolve` is just a helper that picks the new value, when provided, or the current value otherwise.
 
 ```dart
-switch (nickname) {
+final resolved = switch (nickname) {
   Value(value: final v) => v,
   Unchanged() => this.nickname,
-}
+};
 ```
 
 ## The variants
@@ -84,12 +77,9 @@ switch (nickname) {
 | `Unchanged()` | passed nothing | unchanged |
 | `Clear()` | asked to remove the value | `null` |
 
-`Clear` is not a third case to handle. It is a `Value<Null>` — the constant
-`Value(null)`, under a name that says what the call site means — so the
-`Value(value: final v)` pattern already matches it and binds `null`. `Patch<T>`
-is sealed with exactly two direct subtypes, so a switch over `Value` and
-`Unchanged` is exhaustive without a `default` clause, and a missed case is a
-compile error rather than a silent fallthrough.
+### Clear
+
+`Clear` is just a special case of `Value<Null>` to more clearly indicate its intent. Attempting to assign `Clear` to a non-nullable value results in a compile-time error. You do not need to handle a `Clear()` in a `switch` for it to be exhaustive.
 
 ## Non-nullable fields
 
@@ -99,8 +89,7 @@ A non-nullable parameter uses the same API:
 name.resolve(this.name)
 ```
 
-Clearing such a field does not type-check, because `Clear` is a `Patch<Null>`
-and `Null` is not a subtype of `String`:
+Mentioned above, clearing a non-nullable field does not pass type-checking:
 
 ```dart
 profile.copyWith(name: const Clear());
@@ -108,14 +97,9 @@ profile.copyWith(name: const Clear());
 //                       parameter type 'Patch<String>'.
 ```
 
-The same applies to spelling it out as `Value(null)`. Nothing has to be folded
-into `Unchanged`, and there is no unreachable branch to write.
+## Strong typing
 
-The type argument is load-bearing. A parameter annotated as a bare `Patch` is a
-`Patch<dynamic>`, which accepts `Clear` no matter what the field's type is; the
-mismatch then surfaces as a runtime `type 'Null' is not a subtype of type
-'String'` rather than as the compile error above. Enable `strict-raw-types` in
-your `analysis_options.yaml` so a raw `Patch` is reported:
+The type argument in a `Patch` is necessary. A bare `Patch` becomes a `Patch<dynamic>`, which accepts a `Clear` no matter what the field's type actually is. This opens the door for runtime errors. Enable `strict-raw-types` in your `analysis_options.yaml` to catch this.
 
 ```yaml
 analyzer:
@@ -125,53 +109,35 @@ analyzer:
 
 ## Why `resolve` is an extension
 
-`Clear` is a `Value<Null>`, so a `resolve` inherited from `Patch<T>` would take
-`current` as `Null` and Dart's covariance check would throw the moment a
-populated field was cleared — the package's whole reason for existing. Extension
-methods are dispatched statically, so `current` is typed by the call site.
+`Clear` is a `Value<Null>`. If `resolve` were a real method on `Patch<T>`, then calling it on a `Clear` would type `current` as `Null`, and clearing a populated field would throw. Extensions are dispatched statically, so `current` gets its type from the call site instead.
 
-Three consequences. `resolve` is invisible through a `dynamic` receiver; an
-importing library that declares its own `resolve` on `Patch` shadows this one;
-and the receiver has to be typed `Patch<T?>` rather than `Clear`, because static
-dispatch infers `T` from the receiver's static type:
+The cost is that you have to call it on something typed `Patch<T?>`:
 
 ```dart
-const Clear().resolve('Ada');            // does not compile — T infers as Null
+const Clear().resolve('Ada');            // won't compile; T infers as Null
 
 final Patch<String?> patch = const Clear();
 patch.resolve('Ada');                    // null
 ```
 
-In practice a `copyWith` parameter is already declared `Patch<T?>`, so the
-widening happens at the call site for free. All three are cheap next to a
-runtime failure the analyzer cannot see.
+`copyWith` parameters are already `Patch<T?>`, so you rarely hit this.
 
-## Two things to know
+## Equality
 
-`Value(null)` and `Clear()` are the same thing, deliberately. The distinction
-that earns its keep is between those and `Unchanged()`, and neither can be
-confused with an omitted argument. If a particular `copyWith` does need to tell
-an explicit clear apart from an incidental `null`, match `Clear()` *before*
-`Value(...)` — the reverse order makes the `Clear` case unreachable, which the
-analyzer reports.
-
-The variants are value types. Two separately constructed `Value('a')` instances
-are equal, all `Unchanged()`s are equal, and neither is equal to the other, so
-patches compare, hash, and work as map keys and set members as you would expect:
+The variants are value types, so two separate `Value` instances with the same value are equal. All `Unchanged` are equal to each other, too. This allows `Patch`es to compare and hash and even work as `Map` keys and `Set` members.
 
 ```dart
-Value('a') == Value('a');             // true
-Value<Object>('a') == Value('a');     // true — the type argument is not part of it
-const Unchanged<String>() == const Unchanged<int>(); // true
-const Unchanged<String?>() == Value<String?>(null);  // false
+const Value('a') == const Value('a');                      // true
+// equality is based on the _value_, not the type
+const Value<Object>('a') == const Value('a');              // true
+const Unchanged<String>() == const Unchanged<int>();       // true
+const Unchanged<String?>() == const Value<String?>(null);  // false
 ```
 
-Equality follows the paragraph above: since `Clear()` *is* `Value(null)`, the
-two are equal.
+Note: since `Clear()` *is* `Value(null)`, the two are equal.
 
 ```dart
-const Clear() == Value<String?>(null); // true
+const Clear() == const Value<String?>(null); // true
 ```
 
-Use `is Clear` when you need to tell an explicit clear apart from an incidental
-`null` — equality will not do it for you.
+Use `is Clear` when you need to tell an explicit clear apart from an incidental `null` - equality will not do it for you.
