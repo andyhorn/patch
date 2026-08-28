@@ -1,7 +1,8 @@
 name: patch
 description: A wrapper for copyWith arguments, so that a nullable field can be cleared as well as replaced.
 version: 1.0.0
-# repository: https://github.com/my_org/my_repo
+repository: https://github.com/andyhorn/patch
+issue_tracker: https://github.com/andyhorn/patch/issues
 
 environment:
   sdk: ^3.13.2

@@ -10,7 +10,27 @@ to `null`. `Patch<T>` separates those cases.
 
 ## Getting started
 
-This package is not published on pub.dev. Depend on it by path:
+This package is not published on pub.dev. Depend on it from git:
+
+```yaml
+dependencies:
+  patch:
+    git:
+      url: https://github.com/andyhorn/patch.git
+```
+
+Pin a release by adding a `ref`:
+
+```yaml
+dependencies:
+  patch:
+    git:
+      url: https://github.com/andyhorn/patch.git
+      ref: v1.0.0
+```
+
+To work on the package alongside a consumer, depend on a local checkout
+instead:
 
 ```yaml
 dependencies:
