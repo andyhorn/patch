@@ -128,7 +128,8 @@ The variants are value types, so two separate `Value` instances with the same va
 
 ```dart
 const Value('a') == const Value('a');                      // true
-const Value<Object>('a') == const Value('a');              // true - equality is based on the _value_, not the type
+// equality is based on the _value_, not the type
+const Value<Object>('a') == const Value('a');              // true
 const Unchanged<String>() == const Unchanged<int>();       // true
 const Unchanged<String?>() == const Value<String?>(null);  // false
 ```
