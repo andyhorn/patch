@@ -34,7 +34,7 @@ void main() {
   final renamed = profile.copyWith(nickname: const Value('Countess'));
   print('renamed:      $renamed');
 
-  // `Clear` clears the field — the case a plain `copyWith` cannot express,
+  // `Clear` clears the field - the case a plain `copyWith` cannot express,
   // because `copyWith(nickname: null)` is indistinguishable from `copyWith()`.
   final cleared = profile.copyWith(nickname: const Clear());
   print('cleared:      $cleared');
