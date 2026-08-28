@@ -50,10 +50,10 @@ All three outcomes are reachable:
 ```dart
 final profile = UserProfile('Ada Lovelace', 'Ada');
 
-profile.copyWith().nickname;                                       // 'Ada'
-profile.copyWith(nickname: const Value('The Countess')).nickname;  // 'The Countess'
+profile.copyWith().nickname;                                   // 'Ada'
+profile.copyWith(nickname: const Value('Countess')).nickname;  // 'Countess'
 // Because nickname is nullable, we can also "Clear" it
-profile.copyWith(nickname: const Clear()).nickname;                // null
+profile.copyWith(nickname: const Clear()).nickname;            // null
 ```
 
 For a runnable version, see `example/patch_example.dart`.
