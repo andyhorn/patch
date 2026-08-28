@@ -10,14 +10,8 @@ extension on UserProfile {
     Patch<String> name = const Unchanged(),
     Patch<String?> nickname = const Unchanged(),
   }) => UserProfile(
-    switch (name) {
-      Value(value: final v) => v,
-      Unchanged() => this.name,
-    },
-    switch (nickname) {
-      Value(value: final v) => v,
-      Unchanged() => this.nickname,
-    },
+    name.resolve(this.name),
+    nickname.resolve(this.nickname),
   );
 }
 

@@ -10,19 +10,18 @@
 /// class Person(final String? nickname);
 ///
 /// extension on Person {
-///   Person copyWith({Patch<String?> nickname = const Unchanged()}) => Person(
-///     switch (nickname) {
-///       Value(value: final v) => v,
-///       Unchanged() => this.nickname,
-///     },
-///   );
+///   Person copyWith({Patch<String?> nickname = const Unchanged()}) =>
+///       Person(nickname.resolve(this.nickname));
 /// }
 /// ```
 ///
+/// [resolve] folds the argument against the field's current value. Switch over
+/// the patch directly instead when a case needs to do more than pick a value.
+///
 /// Clearing the field is [Value] carrying `null`, spelled [Clear] at the call
 /// site. Because `null` inhabits only nullable types, a `Patch<String>` rejects
-/// both spellings at compile time, and the switch above stays exhaustive with
-/// no unreachable case to write.
+/// both spellings at compile time, and a switch over [Value] and [Unchanged] is
+/// exhaustive with no unreachable case to write.
 sealed class Patch<T> {
   const Patch._();
 }
@@ -53,4 +52,22 @@ final class Unchanged<T> extends Patch<T> {
 final class Clear extends Value<Null> {
   /// Creates a clearing argument.
   const Clear() : super(null);
+}
+
+/// Folds a [Patch] against the value it is being applied to.
+///
+/// This is an extension rather than a method on [Patch] because [Clear] is a
+/// `Value<Null>`, so an inherited method would take `current` as `Null` and
+/// Dart's covariance check would throw whenever a populated field is cleared.
+/// Extension methods are dispatched statically, so `current` is typed by the
+/// call site instead.
+extension Resolve<T> on Patch<T> {
+  /// The value this patch produces for a field currently holding [current].
+  ///
+  /// [Value] supplies its own value, [Clear] supplies `null`, and [Unchanged]
+  /// gives [current] back.
+  T resolve(T current) => switch (this) {
+    Value(value: final v) => v,
+    Unchanged() => current,
+  };
 }

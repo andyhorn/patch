@@ -43,7 +43,7 @@ It requires Dart 3.13 or later.
 ## Usage
 
 Declare each `copyWith` parameter as a `Patch` that defaults to `Unchanged`, and
-switch over it to produce the new value:
+`resolve` it against the field's current value:
 
 ```dart
 import 'package:patch/patch.dart';
@@ -53,13 +53,7 @@ class UserProfile(final String name, final String? nickname);
 extension on UserProfile {
   UserProfile copyWith({
     Patch<String?> nickname = const Unchanged(),
-  }) => UserProfile(
-    name,
-    switch (nickname) {
-      Value(value: final v) => v,
-      Unchanged() => this.nickname,
-    },
-  );
+  }) => UserProfile(name, nickname.resolve(this.nickname));
 }
 ```
 
@@ -75,6 +69,16 @@ profile.copyWith(nickname: const Clear()).nickname;         // null
 
 For a runnable version, see `example/patch_example.dart`.
 
+`resolve` is the whole of the common case, but nothing is hidden behind it —
+switch over the patch directly when a branch needs to do more than pick a value:
+
+```dart
+switch (nickname) {
+  Value(value: final v) => v,
+  Unchanged() => this.nickname,
+}
+```
+
 ## The variants
 
 | Variant | The caller | The field becomes |
@@ -86,19 +90,16 @@ For a runnable version, see `example/patch_example.dart`.
 `Clear` is not a third case to handle. It is a `Value<Null>` — the constant
 `Value(null)`, under a name that says what the call site means — so the
 `Value(value: final v)` pattern already matches it and binds `null`. `Patch<T>`
-is sealed with exactly two direct subtypes, so the two-case switch above is
-exhaustive without a `default` clause, and a missed case is a compile error
-rather than a silent fallthrough.
+is sealed with exactly two direct subtypes, so a switch over `Value` and
+`Unchanged` is exhaustive without a `default` clause, and a missed case is a
+compile error rather than a silent fallthrough.
 
 ## Non-nullable fields
 
-A non-nullable parameter uses the same API and the same two-case switch:
+A non-nullable parameter uses the same API:
 
 ```dart
-switch (name) {
-  Value(value: final v) => v,
-  Unchanged() => this.name,
-}
+name.resolve(this.name)
 ```
 
 Clearing such a field does not type-check, because `Clear` is a `Patch<Null>`
@@ -112,6 +113,17 @@ profile.copyWith(name: const Clear());
 
 The same applies to spelling it out as `Value(null)`. Nothing has to be folded
 into `Unchanged`, and there is no unreachable branch to write.
+
+## Why `resolve` is an extension
+
+`Clear` is a `Value<Null>`, so a `resolve` inherited from `Patch<T>` would take
+`current` as `Null` and Dart's covariance check would throw the moment a
+populated field was cleared — the package's whole reason for existing. Extension
+methods are dispatched statically, so `current` is typed by the call site.
+
+Two consequences: `resolve` is invisible through a `dynamic` receiver, and an
+importing library that declares its own `resolve` on `Patch` shadows this one.
+Both are cheap next to a runtime failure the analyzer cannot see.
 
 ## Two things to know
 

@@ -7,16 +7,7 @@ extension on _Person {
   _Person copyWith({
     Patch<String> name = const Unchanged(),
     Patch<String?> nickname = const Unchanged(),
-  }) => _Person(
-    switch (name) {
-      Value(value: final v) => v,
-      Unchanged() => this.name,
-    },
-    switch (nickname) {
-      Value(value: final v) => v,
-      Unchanged() => this.nickname,
-    },
-  );
+  }) => _Person(name.resolve(this.name), nickname.resolve(this.nickname));
 }
 
 void main() {
@@ -98,6 +89,60 @@ void main() {
 
         expect(result.name, equals('Grace'));
         expect(result.nickname, isNull);
+      });
+    });
+
+    group('resolve', () {
+      test('supplies the value of a $Value', () {
+        expect(Value('Grace').resolve('Ada'), equals('Grace'));
+      });
+
+      test('gives back the current value for an $Unchanged', () {
+        expect(const Unchanged<String>().resolve('Ada'), equals('Ada'));
+      });
+
+      test('supplies null for a $Value of null', () {
+        expect(const Value<String?>(null).resolve('Ada'), isNull);
+      });
+
+      // `Clear` is a `Value<Null>`. An inherited method would take `current` as
+      // `Null` and fail Dart's covariance check on a non-null current value, so
+      // this is the case that pins `resolve` to being an extension.
+      test('supplies null for a $Clear over a non-null current value', () {
+        final Patch<String?> patch = const Clear();
+
+        expect(patch.resolve('Ada'), isNull);
+      });
+
+      test('supplies null for a $Clear over a null current value', () {
+        final Patch<String?> patch = const Clear();
+
+        expect(patch.resolve(null), isNull);
+      });
+
+      test('resolves a non-nullable patch', () {
+        final Patch<int> supplied = Value(2);
+        final Patch<int> omitted = const Unchanged();
+
+        expect(supplied.resolve(1), equals(2));
+        expect(omitted.resolve(1), equals(1));
+      });
+
+      test('agrees with an equivalent hand-written switch', () {
+        String? byHand(Patch<String?> patch, String? current) =>
+            switch (patch) {
+              Value(value: final v) => v,
+              Unchanged() => current,
+            };
+
+        for (final Patch<String?> patch in [
+          Value('Grace'),
+          Value(null),
+          const Unchanged(),
+          const Clear(),
+        ]) {
+          expect(patch.resolve('Ada'), equals(byHand(patch, 'Ada')));
+        }
       });
     });
 
