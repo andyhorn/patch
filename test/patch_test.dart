@@ -187,5 +187,58 @@ void main() {
         expect(identical(const Clear(), const Clear()), isTrue);
       });
     });
+
+    group('equality', () {
+      test('equates separately constructed $Value of the same value', () {
+        expect(Value('a'), equals(Value('a')));
+        expect(Value('a').hashCode, equals(Value('a').hashCode));
+      });
+
+      test('separates $Value of differing values', () {
+        expect(Value('a'), isNot(equals(Value('b'))));
+      });
+
+      test('ignores the type argument of a $Value', () {
+        expect(Value<Object>('a'), equals(Value<String>('a')));
+        expect(
+          Value<Object>('a').hashCode,
+          equals(Value<String>('a').hashCode),
+        );
+      });
+
+      test('equates all $Unchanged', () {
+        expect(const Unchanged<String>(), equals(const Unchanged<int>()));
+        expect(
+          const Unchanged<String>().hashCode,
+          equals(const Unchanged<int>().hashCode),
+        );
+      });
+
+      test('separates $Unchanged from $Value', () {
+        expect(const Unchanged<String?>(), isNot(equals(Value<String?>(null))));
+        expect(Value<String?>(null), isNot(equals(const Unchanged<String?>())));
+      });
+
+      // `Clear` is `Value(null)` under another name, so equality follows suit.
+      test('equates $Clear with a $Value of null', () {
+        expect(const Clear(), equals(Value<String?>(null)));
+        expect(Value<String?>(null), equals(const Clear()));
+        expect(
+          const Clear().hashCode,
+          equals(Value<String?>(null).hashCode),
+        );
+      });
+
+      test('separates $Clear from $Unchanged', () {
+        expect(const Clear(), isNot(equals(const Unchanged<String?>())));
+      });
+
+      test('works as a map key and a set member', () {
+        final seen = {Value('a'), Value('a'), const Unchanged<String>()};
+
+        expect(seen, hasLength(2));
+        expect({Value('a'): 1}[Value('a')], equals(1));
+      });
+    });
   });
 }

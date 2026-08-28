@@ -134,7 +134,23 @@ an explicit clear apart from an incidental `null`, match `Clear()` *before*
 `Value(...)` — the reverse order makes the `Clear` case unreachable, which the
 analyzer reports.
 
-The variants do not override `==`, so two separately constructed `Value('a')`
-instances are not equal. Assert on the object your `copyWith` returns, not on
-the `Patch` you passed in. The `const` forms of `Unchanged` and `Clear` are
-canonicalized, so those are identical across call sites.
+The variants are value types. Two separately constructed `Value('a')` instances
+are equal, all `Unchanged()`s are equal, and neither is equal to the other, so
+patches compare, hash, and work as map keys and set members as you would expect:
+
+```dart
+Value('a') == Value('a');             // true
+Value<Object>('a') == Value('a');     // true — the type argument is not part of it
+const Unchanged<String>() == const Unchanged<int>(); // true
+const Unchanged<String?>() == Value<String?>(null);  // false
+```
+
+Equality follows the paragraph above: since `Clear()` *is* `Value(null)`, the
+two are equal.
+
+```dart
+const Clear() == Value<String?>(null); // true
+```
+
+Use `is Clear` when you need to tell an explicit clear apart from an incidental
+`null` — equality will not do it for you.

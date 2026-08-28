@@ -29,18 +29,37 @@ sealed class Patch<T> {
 /// An argument that was supplied, carrying [value].
 ///
 /// A `Value(...)` pattern also matches [Clear], whose [value] is `null`.
+///
+/// Two `Value`s are equal when their [value]s are, whatever their type
+/// arguments. `Clear()` therefore equals `Value(null)`, which is what the two
+/// spellings already mean.
 base class Value<T> extends Patch<T> {
   /// The supplied value.
   final T value;
 
   /// Creates a supplied argument carrying [value].
   const Value(this.value) : super._();
+
+  @override
+  bool operator ==(Object other) => other is Value && other.value == value;
+
+  @override
+  int get hashCode => Object.hash(Value, value);
 }
 
 /// An argument that was not supplied; the existing value should be kept.
+///
+/// All `Unchanged`s are equal, whatever their type arguments, and none is equal
+/// to a [Value].
 final class Unchanged<T> extends Patch<T> {
   /// Creates an omitted argument.
   const Unchanged() : super._();
+
+  @override
+  bool operator ==(Object other) => other is Unchanged;
+
+  @override
+  int get hashCode => (Unchanged).hashCode;
 }
 
 /// An argument supplied to null out the field.
