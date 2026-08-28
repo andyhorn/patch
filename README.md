@@ -50,10 +50,10 @@ All three outcomes are reachable:
 ```dart
 final profile = UserProfile('Ada Lovelace', 'Ada');
 
-profile.copyWith().nickname;                                // 'Ada'
-profile.copyWith(nickname: Value('The Countess')).nickname; // 'The Countess'
+profile.copyWith().nickname;                                       // 'Ada'
+profile.copyWith(nickname: const Value('The Countess')).nickname;  // 'The Countess'
 // Because nickname is nullable, we can also "Clear" it
-profile.copyWith(nickname: const Clear()).nickname;         // null
+profile.copyWith(nickname: const Clear()).nickname;                // null
 ```
 
 For a runnable version, see `example/patch_example.dart`.
@@ -127,16 +127,16 @@ patch.resolve('Ada');                    // null
 The variants are value types, so two separate `Value` instances with the same value are equal. All `Unchanged` are equal to each other, too. This allows `Patch`es to compare and hash and even work as `Map` keys and `Set` members.
 
 ```dart
-Value('a') == Value('a');             // true
-Value<Object>('a') == Value('a');     // true - equality is based on the _value_, not the type
-const Unchanged<String>() == const Unchanged<int>(); // true
-const Unchanged<String?>() == Value<String?>(null);  // false
+const Value('a') == const Value('a');                      // true
+const Value<Object>('a') == const Value('a');              // true - equality is based on the _value_, not the type
+const Unchanged<String>() == const Unchanged<int>();       // true
+const Unchanged<String?>() == const Value<String?>(null);  // false
 ```
 
 Note: since `Clear()` *is* `Value(null)`, the two are equal.
 
 ```dart
-const Clear() == Value<String?>(null); // true
+const Clear() == const Value<String?>(null); // true
 ```
 
 Use `is Clear` when you need to tell an explicit clear apart from an incidental `null` - equality will not do it for you.
