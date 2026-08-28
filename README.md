@@ -114,7 +114,7 @@ analyzer:
 The cost is that you have to call it on something typed `Patch<T?>`:
 
 ```dart
-const Clear().resolve('Ada');            // T infers as Null, so this won't compile
+const Clear().resolve('Ada');            // won't compile; T infers as Null
 
 final Patch<String?> patch = const Clear();
 patch.resolve('Ada');                    // null
