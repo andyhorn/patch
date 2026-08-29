@@ -12,9 +12,22 @@ jobs:
   release-please:
     runs-on: ubuntu-latest
     steps:
+      - uses: 1password/load-secrets-action@v5
+        id: op
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+          RELEASE_PLEASE_APP_ID: op://patch/release-please/app-id
+          RELEASE_PLEASE_PRIVATE_KEY: op://patch/release-please/patch-release-please.private-key.pem
+
       # A tag pushed with the default GITHUB_TOKEN does not start another
-      # workflow, so publish.yml only fires when RELEASE_PLEASE_TOKEN is set.
+      # workflow, so the tag has to come from the app for publish.yml to fire.
+      - uses: actions/create-github-app-token@v3
+        id: app-token
+        with:
+          app-id: ${{ steps.op.outputs.RELEASE_PLEASE_APP_ID }}
+          private-key: ${{ steps.op.outputs.RELEASE_PLEASE_PRIVATE_KEY }}
+
       - uses: googleapis/release-please-action@v4
         with:
           release-type: dart
-          token: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
+          token: ${{ steps.app-token.outputs.token }}
