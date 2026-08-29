@@ -1,3 +1,9 @@
+## 1.0.1
+
+- Rewrote the README's explanation of why `resolve` is an extension, and
+  normalized the file's formatting.
+- No library changes.
+
 ## 1.0.0
 
 - Added `Patch<T>`, a sealed wrapper for `copyWith` arguments that tells an
